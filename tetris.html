@@ -240,24 +240,12 @@
 
 <!-- スマホ用操作ボタン（横1列） -->
 <div class="mobile-controls">
-  <button class="ctrl-btn" ontouchstart="startRepeat('left')" ontouchend="stopRepeat()" ontouchcancel="stopRepeat()" onmousedown="startRepeat('left')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()">
-    ◀<span class="label">左</span>
-  </button>
-  <button class="ctrl-btn" ontouchstart="startRepeat('down')" ontouchend="stopRepeat()" ontouchcancel="stopRepeat()" onmousedown="startRepeat('down')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()">
-    ▼<span class="label">下</span>
-  </button>
-  <button class="ctrl-btn" ontouchstart="startRepeat('right')" ontouchend="stopRepeat()" ontouchcancel="stopRepeat()" onmousedown="startRepeat('right')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()">
-    ▶<span class="label">右</span>
-  </button>
-  <button class="ctrl-btn" ontouchstart="handleBtn('rotate')" ontouchend="noop()" onclick="handleBtn('rotate')">
-    ↻<span class="label">回転</span>
-  </button>
-  <button class="ctrl-btn" ontouchstart="handleBtn('drop')" ontouchend="noop()" onclick="handleBtn('drop')">
-    ⬇<span class="label">落とす</span>
-  </button>
-  <button class="ctrl-btn" ontouchstart="handleBtn('pause')" ontouchend="noop()" onclick="handleBtn('pause')">
-    ⏸<span class="label">停止</span>
-  </button>
+  <button class="ctrl-btn" id="btn-left">◀<span class="label">左</span></button>
+  <button class="ctrl-btn" id="btn-down">▼<span class="label">下</span></button>
+  <button class="ctrl-btn" id="btn-right">▶<span class="label">右</span></button>
+  <button class="ctrl-btn" id="btn-rotate">↻<span class="label">回転</span></button>
+  <button class="ctrl-btn" id="btn-drop">⬇<span class="label">落とす</span></button>
+  <button class="ctrl-btn" id="btn-pause">⏸<span class="label">停止</span></button>
 </div>
 
 <script>
@@ -453,23 +441,58 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
 });
 
-function noop() {}
-function handleBtn(action) {
-  if (!gameRunning && action !== 'pause') return;
-  if (action === 'rotate') tryRotate();
-  if (action === 'drop')   hardDrop();
-  if (action === 'pause')  togglePause();
-}
-
 let repeatTimer = null;
-function startRepeat(action) { doAction(action); repeatTimer = setInterval(() => doAction(action), 120); }
-function stopRepeat()  { clearInterval(repeatTimer); repeatTimer = null; }
+
 function doAction(action) {
   if (!gameRunning || paused) return;
   if (action === 'left'  && !collide(pieceX-1, pieceY)) pieceX--;
   if (action === 'right' && !collide(pieceX+1, pieceY)) pieceX++;
   if (action === 'down') { if (!collide(pieceX, pieceY+1)) pieceY++; else lockPiece(); dropCounter=0; }
 }
+
+function stopRepeat() { clearInterval(repeatTimer); repeatTimer = null; }
+
+function bindRepeat(id, action) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('touchstart', e => {
+    e.preventDefault();
+    doAction(action);
+    repeatTimer = setInterval(() => doAction(action), 120);
+  }, { passive: false });
+  el.addEventListener('touchend',    e => { e.preventDefault(); stopRepeat(); }, { passive: false });
+  el.addEventListener('touchcancel', e => { e.preventDefault(); stopRepeat(); }, { passive: false });
+  // PCマウス用
+  el.addEventListener('mousedown', () => { doAction(action); repeatTimer = setInterval(() => doAction(action), 120); });
+  el.addEventListener('mouseup',   stopRepeat);
+  el.addEventListener('mouseleave', stopRepeat);
+}
+
+function bindTap(id, action) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!gameRunning && action !== 'pause') return;
+    if (action === 'rotate') tryRotate();
+    if (action === 'drop')   hardDrop();
+    if (action === 'pause')  togglePause();
+  }, { passive: false });
+  // PCマウス用
+  el.addEventListener('click', () => {
+    if (!gameRunning && action !== 'pause') return;
+    if (action === 'rotate') tryRotate();
+    if (action === 'drop')   hardDrop();
+    if (action === 'pause')  togglePause();
+  });
+}
+
+bindRepeat('btn-left',  'left');
+bindRepeat('btn-down',  'down');
+bindRepeat('btn-right', 'right');
+bindTap('btn-rotate', 'rotate');
+bindTap('btn-drop',   'drop');
+bindTap('btn-pause',  'pause');
 
 document.getElementById('message').style.display = 'block';
 </script>
