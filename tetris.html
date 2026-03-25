@@ -2,14 +2,17 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>テトリス</title>
 <style>
+  * { box-sizing: border-box; }
   body {
     background: #1a1a2e;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
     font-family: 'Courier New', monospace;
     color: #eee;
@@ -22,6 +25,7 @@
   canvas {
     border: 2px solid #444;
     background: #0d0d1a;
+    display: block;
   }
   .side-panel {
     width: 120px;
@@ -59,6 +63,8 @@
     text-align: center;
     border: 2px solid #e94560;
     display: none;
+    z-index: 10;
+    width: max-content;
   }
   #message h1 { color: #e94560; margin: 0 0 10px; }
   #message p { color: #aaa; margin: 0 0 16px; }
@@ -70,35 +76,138 @@
     font-size: 14px;
     cursor: pointer;
     letter-spacing: 1px;
+    touch-action: manipulation;
   }
   button:hover { background: #c73652; }
+  button:active { background: #a02a42; }
   .controls {
     margin-top: 16px;
     font-size: 11px;
     color: #666;
     line-height: 1.8;
   }
+
+  /* スマホ用コントロールボタン */
+  .mobile-controls {
+    display: none;
+    margin-top: 16px;
+    gap: 8px;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .mobile-controls .row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .ctrl-btn {
+    width: 72px;
+    height: 64px;
+    background: #16213e;
+    border: 2px solid #444;
+    color: #eee;
+    font-size: 22px;
+    cursor: pointer;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 0;
+    letter-spacing: 0;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .ctrl-btn span.label {
+    font-size: 9px;
+    color: #888;
+    letter-spacing: 0.5px;
+  }
+  .ctrl-btn:active {
+    background: #e94560;
+    border-color: #e94560;
+  }
+  .ctrl-btn.drop-btn {
+    width: 152px;
+    background: #1e1e3e;
+    font-size: 18px;
+  }
+
+  /* スマホ時のレイアウト切り替え */
+  @media (max-width: 600px) {
+    body {
+      justify-content: flex-start;
+      padding: 12px 0 20px;
+    }
+    .game-container {
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .side-panel {
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 0 12px;
+    }
+    .side-panel > * {
+      flex: 1;
+    }
+    .side-panel h2 {
+      font-size: 10px;
+      margin: 0 0 4px;
+    }
+    .score-box {
+      margin-bottom: 0;
+      padding: 6px;
+    }
+    .score-box .value {
+      font-size: 16px;
+    }
+    #next-canvas-wrapper {
+      display: none;
+    }
+    .controls {
+      display: none;
+    }
+    .mobile-controls {
+      display: flex;
+    }
+  }
 </style>
 </head>
 <body>
 <div class="game-container">
   <div style="position:relative;">
-    <canvas id="board" width="300" height="600"></canvas>
+    <canvas id="board"></canvas>
     <div id="message">
       <h1 id="msg-title">テトリス</h1>
-      <p id="msg-sub">スペースキーまたはボタンでスタート</p>
+      <p id="msg-sub">スタートボタンで開始</p>
       <button onclick="startGame()">スタート</button>
     </div>
   </div>
   <div class="side-panel">
-    <h2>スコア</h2>
-    <div class="score-box"><div class="value" id="score">0</div></div>
-    <h2>レベル</h2>
-    <div class="score-box"><div class="value" id="level">1</div></div>
-    <h2>ライン</h2>
-    <div class="score-box"><div class="value" id="lines">0</div></div>
-    <h2>次のブロック</h2>
-    <canvas id="next-canvas" width="120" height="120"></canvas>
+    <div>
+      <h2>スコア</h2>
+      <div class="score-box"><div class="value" id="score">0</div></div>
+    </div>
+    <div>
+      <h2>レベル</h2>
+      <div class="score-box"><div class="value" id="level">1</div></div>
+    </div>
+    <div>
+      <h2>ライン</h2>
+      <div class="score-box"><div class="value" id="lines">0</div></div>
+    </div>
+    <div id="next-canvas-wrapper">
+      <h2>次のブロック</h2>
+      <canvas id="next-canvas" width="120" height="120"></canvas>
+    </div>
     <div class="controls">
       ← → : 移動<br>
       ↑ / Z : 回転<br>
@@ -109,12 +218,57 @@
   </div>
 </div>
 
+<!-- スマホ用操作ボタン -->
+<div class="mobile-controls">
+  <div class="row">
+    <button class="ctrl-btn" id="btn-rotate" ontouchstart="handleBtn('rotate')" onclick="handleBtn('rotate')">
+      ↻<span class="label">回転</span>
+    </button>
+    <button class="ctrl-btn drop-btn" id="btn-drop" ontouchstart="handleBtn('drop')" onclick="handleBtn('drop')">
+      ⬇<span class="label">一気に落とす</span>
+    </button>
+    <button class="ctrl-btn" id="btn-pause" ontouchstart="handleBtn('pause')" onclick="handleBtn('pause')">
+      ⏸<span class="label">停止</span>
+    </button>
+  </div>
+  <div class="row">
+    <button class="ctrl-btn" ontouchstart="startRepeat('left')" ontouchend="stopRepeat()" ontouchcancel="stopRepeat()" onmousedown="startRepeat('left')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()">
+      ◀<span class="label">左</span>
+    </button>
+    <button class="ctrl-btn" ontouchstart="startRepeat('down')" ontouchend="stopRepeat()" ontouchcancel="stopRepeat()" onmousedown="startRepeat('down')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()">
+      ▼<span class="label">下</span>
+    </button>
+    <button class="ctrl-btn" ontouchstart="startRepeat('right')" ontouchend="stopRepeat()" ontouchcancel="stopRepeat()" onmousedown="startRepeat('right')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()">
+      ▶<span class="label">右</span>
+    </button>
+  </div>
+</div>
+
 <script>
-const COLS = 10, ROWS = 20, BLOCK = 30;
+const COLS = 10, ROWS = 20;
+let BLOCK = 30;
+
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
 const nextCtx = nextCanvas.getContext('2d');
+
+function initSizes() {
+  const isMobile = window.innerWidth <= 600;
+  if (isMobile) {
+    BLOCK = Math.floor((window.innerWidth - 24) / COLS);
+  } else {
+    BLOCK = 30;
+  }
+  canvas.width = COLS * BLOCK;
+  canvas.height = ROWS * BLOCK;
+}
+
+initSizes();
+window.addEventListener('resize', () => {
+  initSizes();
+  if (typeof draw === 'function') draw();
+});
 
 const COLORS = [
   null,
@@ -238,7 +392,8 @@ function lockPiece() {
   spawnPiece();
 }
 
-function drawBlock(ctx, x, y, color, size = BLOCK) {
+function drawBlock(ctx, x, y, color, size) {
+  size = size || BLOCK;
   ctx.fillStyle = color;
   ctx.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
   ctx.fillStyle = 'rgba(255,255,255,0.15)';
@@ -354,6 +509,7 @@ function togglePause() {
   }
 }
 
+// キーボード操作
 document.addEventListener('keydown', e => {
   if (!gameRunning || paused) {
     if (e.code === 'Space' && !gameRunning) startGame();
@@ -385,7 +541,35 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
 });
 
-// show start screen
+// スマホボタン操作
+function handleBtn(action) {
+  if (!gameRunning && action !== 'pause') return;
+  if (action === 'rotate') tryRotate();
+  if (action === 'drop') hardDrop();
+  if (action === 'pause') togglePause();
+}
+
+let repeatTimer = null;
+function startRepeat(action) {
+  doAction(action);
+  repeatTimer = setInterval(() => doAction(action), 120);
+}
+function stopRepeat() {
+  clearInterval(repeatTimer);
+  repeatTimer = null;
+}
+function doAction(action) {
+  if (!gameRunning || paused) return;
+  if (action === 'left' && !collide(pieceX - 1, pieceY)) pieceX--;
+  if (action === 'right' && !collide(pieceX + 1, pieceY)) pieceX++;
+  if (action === 'down') {
+    if (!collide(pieceX, pieceY + 1)) pieceY++;
+    else lockPiece();
+    dropCounter = 0;
+  }
+}
+
+// スタート画面を表示
 document.getElementById('message').style.display = 'block';
 </script>
 </body>
